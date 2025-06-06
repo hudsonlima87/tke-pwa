@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico de Elevadores</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#d32f2f">
+    <link rel="icon" href="icons/icon-192.png">
+    <!-- Para iOS/Safari -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+        h1 { color: #d32f2f; text-align: center; }
+        .search-box { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ddd; border-radius: 4px; }
+        .result-card { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; }
+        .result-card:hover { background: #f9f9f9; }
+        .details-view { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        button { background: #d32f2f; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        ul, ol { padding-left: 20px; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>Diagnóstico de Elevadores</h1>
+        <img src="logo.png" alt="Logo da empresa" style="display:block; margin:0 auto 16px; max-width:160px;">
+        <div class="search-box">
+            <select id="marcaSelect" onchange="updateModelos(); filterFalhas();" style="margin-bottom:8px;">
+                <option value="">Todas as marcas</option>
+            </select>
+            <select id="modeloSelect" onchange="updateFalhas(); filterFalhas();" style="margin-bottom:8px;">
+                <option value="">Todos os modelos</option>
+            </select>
+            <select id="falhaSelect" onchange="selectFalha();" style="margin-bottom:8px;">
+                <option value="">Selecione uma falha</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="Digite código, marca, modelo ou sintoma..." oninput="filterFalhas()">
+        </div>
+        <div id="resultsView"></div>
+        <div id="detailsView" class="details-view" style="display: none;">
+            <button onclick="backToList()">← Voltar</button>
+            <h2 id="detailTitle"></h2>
+            <h3>Sintomas:</h3>
+            <ul id="detailSymptoms"></ul>
+            <h3>Causas possíveis:</h3>
+            <ul id="detailCauses"></ul>
+            <h3>Soluções recomendadas:</h3>
+            <ol id="detailSolutions"></ol>
+        </div>
+    </div>
+    <script>
+        const falhas = [
+            { id: "E05", marca: "Otis", modelo: "Gen2", titulo: "Erro no freio de segurança", sintomas: ["Elevador treme ao parar", "Barulho metálico"], causas: ["Desgaste das pastilhas", "Sensor mal ajustado"], solucoes: ["Substituir pastilhas", "Reajustar sensor"] },
+            { id: "F12", marca: "Schindler", modelo: "3300", titulo: "Falha no painel de controle", sintomas: ["Botões não respondem", "Display apagado"], causas: ["Curto-circuito", "Fonte desligada"], solucoes: ["Verificar fiação", "Resetar disjuntor"] },
+            { id: "M07", marca: "TK Elevator", modelo: "Synergy", titulo: "Problema no motor principal", sintomas: ["Elevador não sobe", "Ruído alto no poço"], causas: ["Superaquecimento", "Falha no capacitor"], solucoes: ["Verificar ventilação", "Testar capacitor"] }
+        ];
+
+        window.onload = function() {
+            // Preenche marcas
+            const marcas = [...new Set(falhas.map(f => f.marca))];
+            const marcaSelect = document.getElementById('marcaSelect');
+            marcas.forEach(marca => {
+                const opt = document.createElement('option');
+                opt.value = marca;
+                opt.textContent = marca;
+                marcaSelect.appendChild(opt);
+            });
+            updateModelos();
+        };
+
+        function updateModelos() {
+            const marca = document.getElementById('marcaSelect').value;
+            const modeloSelect = document.getElementById('modeloSelect');
+            modeloSelect.innerHTML = '<option value="">Todos os modelos</option>';
+            let modelos = falhas;
+            if (marca) {
+                modelos = falhas.filter(f => f.marca === marca);
+            }
+            [...new Set(modelos.map(f => f.modelo))].forEach(modelo => {
+                const opt = document.createElement('option');
+                opt.value = modelo;
+                opt.textContent = modelo;
+                modeloSelect.appendChild(opt);
+            });
+            updateFalhas();
+        }
+
+        function updateFalhas() {
+            const marca = document.getElementById('marcaSelect').value;
+            const modelo = document.getElementById('modeloSelect').value;
+            const falhaSelect = document.getElementById('falhaSelect');
+            falhaSelect.innerHTML = '<option value="">Selecione uma falha</option>';
+            let falhasFiltradas = falhas;
+            if (marca) {
+                falhasFiltradas = falhasFiltradas.filter(f => f.marca === marca);
+            }
+            if (modelo) {
+                falhasFiltradas = falhasFiltradas.filter(f => f.modelo === modelo);
+            }
+            falhasFiltradas.forEach(falha => {
+                const opt = document.createElement('option');
+                opt.value = falha.id;
+                opt.textContent = `${falha.id} - ${falha.titulo}`;
+                falhaSelect.appendChild(opt);
+            });
+        }
+
+        function filterFalhas() {
+            const termo = document.getElementById('searchInput').value.toLowerCase();
+            const marca = document.getElementById('marcaSelect').value;
+            const modelo = document.getElementById('modeloSelect').value;
+            const resultados = falhas.filter(falha =>
+                (!marca || falha.marca === marca) &&
+                (!modelo || falha.modelo === modelo) &&
+                (
+                    falha.id.toLowerCase().includes(termo) ||
+                    falha.marca.toLowerCase().includes(termo) ||
+                    falha.modelo.toLowerCase().includes(termo) ||
+                    falha.titulo.toLowerCase().includes(termo) ||
+                    falha.sintomas.some(s => s.toLowerCase().includes(termo))
+                )
+            );
+            showResults(resultados);
+            updateFalhas();
+        }
+
+        function selectFalha() {
+            const falhaId = document.getElementById('falhaSelect').value;
+            if (falhaId) {
+                showDetail(falhaId);
+            }
+        }
+        function showResults(falhasFiltradas) {
+            const html = falhasFiltradas.map(falha => `
+                <div class="result-card" onclick="showDetail('${falha.id}')">
+                    <h3>${falha.id} - ${falha.titulo}</h3>
+                    <p><b>Marca:</b> ${falha.marca} | <b>Modelo:</b> ${falha.modelo}</p>
+                    <p><b>Sintomas:</b> ${falha.sintomas.join(', ')}</p>
+                </div>`).join('');
+            document.getElementById('resultsView').innerHTML = html || '<p>Nenhuma falha encontrada. Tente outro termo.</p>';
+        }
+        function showDetail(falhaId) {
+            const falha = falhas.find(f => f.id === falhaId);
+            if (!falha) return;
+            document.getElementById('detailTitle').textContent = `${falha.id} - ${falha.titulo}`;
+            document.getElementById('detailSymptoms').innerHTML = falha.sintomas.map(s => `<li>${s}</li>`).join('');
+            document.getElementById('detailCauses').innerHTML = falha.causas.map(c => `<li>${c}</li>`).join('');
+            document.getElementById('detailSolutions').innerHTML = falha.solucoes.map(s => `<li>${s}</li>`).join('');
+            document.getElementById('resultsView').style.display = 'none';
+            document.getElementById('detailsView').style.display = 'block';
+        }
+        function backToList() {
+            document.getElementById('resultsView').style.display = 'block';
+            document.getElementById('detailsView').style.display = 'none';
+        }
+    </script>
+    <script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./service-worker.js')
+            .then(() => console.log('Service Worker registrado'))
+            .catch(error => console.log('Erro no Service Worker', error));
+    }
+    </script>
+</body>
+</html>
